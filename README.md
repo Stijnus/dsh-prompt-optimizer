@@ -1,5 +1,12 @@
 # dsh-prompt-rewrite
 
+[![npm](https://img.shields.io/npm/v/dsh-prompt-rewrite?label=npm&color=blue)](https://www.npmjs.com/package/dsh-prompt-rewrite)
+[![npm provenance](https://img.shields.io/badge/npm%20provenance-SLSA%20v1-brightgreen)](https://www.npmjs.com/package/dsh-prompt-rewrite)
+[![test](https://github.com/Stijnus/dsh-prompt-optimizer/actions/workflows/test.yml/badge.svg)](https://github.com/Stijnus/dsh-prompt-optimizer/actions/workflows/test.yml)
+[![license](https://img.shields.io/npm/l/dsh-prompt-rewrite)](LICENSE)
+
+[English](./README.md) · [中文](./README.zh-CN.md)
+
 A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin that
 optimizes the prompt you are about to send.
 
@@ -42,6 +49,18 @@ produced it.
 > plugin is unrelated to that package; both optimize composer prompts, but this
 > one reuses [`oss-prompt-optimizer`](https://www.npmjs.com/package/oss-prompt-optimizer)
 > as its rewrite engine.
+
+## Quick start
+
+```sh
+dsh plugin --profile web add dsh-prompt-rewrite
+```
+
+Restart the Harness (or refresh the Web UI). A ✨ **Optimize prompt** control appears next to the composer send button.
+
+<sub>More from this suite: [Moodboard](https://github.com/Stijnus/dsh-moodboard) · [Composer Predictions](https://github.com/Stijnus/dsh-composer-predictions) · [Move to Workspace](https://github.com/Stijnus/dsh-move-to-workspace) · [Workspace Status](https://github.com/Stijnus/dsh-workspace-status) · [Prompt Rewrite](https://github.com/Stijnus/dsh-prompt-optimizer)</sub>
+
+<sub>⭐ If this saves you a step, a star helps the next DSH user find it.</sub>
 
 ## Install
 
