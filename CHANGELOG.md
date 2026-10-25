@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0 — 2026-10-25
+
+### Added
+
+- `outputStyle` setting: choose how the rewritten prompt is shaped.
+  - `plain` (default) — one continuous, heading-free prompt.
+  - `sections` — `## Role` / `## Task` / `## Context` / `## Format` headings.
+  - `role-task-goal` — `Role:` / `Task:` / `Goal:` labeled lines.
+- Settings → General row ("Prompt style") that stores a per-browser override.
+- Host `Config` schema so a profile can set the default in `cordis.patch.yml`.
+- `GET /prompt-optimizer/defaults` reports the effective profile default, so the
+  settings row reflects config before the user overrides it.
+- The result dock names the style that produced the rewrite, next to the model.
+
 ## 0.1.0 — 2026-10-25
 
 ### Added

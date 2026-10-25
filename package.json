@@ -1,7 +1,7 @@
 {
   "name": "@stijnus/dsh-prompt-optimizer",
-  "version": "0.1.0",
-  "description": "Optimize the DeepSeek Harness composer draft into a structured prompt through the session model, reusing the Prompt Optimizer rewrite engine.",
+  "version": "0.2.0",
+  "description": "Optimize the DeepSeek Harness composer draft into a structured prompt through the session model, reusing the Prompt Optimizer rewrite engine. Choose plain, sections, or role-task-goal output.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -64,6 +64,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.5",
     "oss-prompt-optimizer": "^1.13.1"
   }
 }

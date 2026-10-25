@@ -12,6 +12,31 @@ click **Use**.
 It runs on the model the session is already routed to (the same route the next
 turn would use), and it never writes to the Session log.
 
+### Prompt style
+
+The rewritten prompt can take three shapes, chosen in **Settings → General →
+Prompt style**:
+
+| Style | Output |
+| --- | --- |
+| `plain` (default) | One continuous, heading-free prompt. |
+| `sections` | `## Role` / `## Task` / `## Context` / `## Format` headings. |
+| `role-task-goal` | `Role:` / `Task:` / `Goal:` labeled lines. |
+
+The row stores a per-browser override. A profile can set the default for
+everyone through the plugin's `Config`:
+
+```yaml
+- id: prompt-optimizer
+  name: '@stijnus/dsh-prompt-optimizer'
+  config:
+    outputStyle: sections
+```
+
+Until the row is changed, it shows that profile default; an override in the row
+wins for requests from that browser. The result panel names the style that
+produced it.
+
 > **Naming:** this package is scoped because the unscoped name
 > `dsh-prompt-optimizer` already belongs to a different author on npm. This
 > plugin is unrelated to that package; both optimize composer prompts, but this

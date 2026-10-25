@@ -20,7 +20,18 @@ window.__ModuleLoader__.load({
 
     const NS = 'prompt-optimizer'
     const ENDPOINT = '/prompt-optimizer/optimize'
+    const DEFAULTS_ENDPOINT = '/prompt-optimizer/defaults'
     const MAX_DRAFT_CHARS = 6000
+
+    /** Rewrite shapes accepted by the Host; mirrors its Config enum. */
+    const STYLES = ['plain', 'sections', 'role-task-goal']
+    /** Browser-scoped override of the profile's `outputStyle` default. */
+    const STYLE_KEY = 'dsh-prompt-optimizer.outputStyle'
+    const STYLE_SHORT_KEYS = {
+      plain: 'stylePlainShort',
+      sections: 'styleSectionsShort',
+      'role-task-goal': 'styleRoleTaskGoalShort',
+    }
 
     const DICTIONARIES = {
       en: {
@@ -38,6 +49,15 @@ window.__ModuleLoader__.load({
         panelEmpty: 'No result yet.',
         panelApplied: 'Draft replaced. Undo restores the original text.',
         panelError: 'Optimization failed: {reason}',
+        styleRowTitle: 'Prompt style',
+        styleRowDescription:
+          'Shape the rewritten prompt is written in. Plain keeps one continuous prompt; Sections uses Role / Task / Context / Format headings; Role-Task-Goal uses three labeled lines.',
+        stylePlain: 'Plain prompt',
+        styleSections: 'Sections (Role / Task / Context / Format)',
+        styleRoleTaskGoal: 'Role / Task / Goal',
+        stylePlainShort: 'plain',
+        styleSectionsShort: 'sections',
+        styleRoleTaskGoalShort: 'role-task-goal',
       },
       zh: {
         label: '提示词优化',
@@ -54,7 +74,37 @@ window.__ModuleLoader__.load({
         panelEmpty: '还没有结果。',
         panelApplied: '已替换草稿，点击撤销可恢复原文。',
         panelError: '优化失败：{reason}',
+        styleRowTitle: '提示词形态',
+        styleRowDescription:
+          '控制改写后提示词的排版。纯文本：一整段连续提示词；分段：使用「角色 / 任务 / 背景 / 格式」小节标题；角色·任务·目标：三行标签式。',
+        stylePlain: '纯文本',
+        styleSections: '分段（角色 / 任务 / 背景 / 格式）',
+        styleRoleTaskGoal: '角色 / 任务 / 目标',
+        stylePlainShort: '纯文本',
+        styleSectionsShort: '分段',
+        styleRoleTaskGoalShort: '角色·任务·目标',
       },
+    }
+
+    // ---- style preference ------------------------------------------------------
+
+    /** Read the browser override, or '' when unset/invalid. */
+    function readStoredStyle() {
+      try {
+        const value = window.localStorage?.getItem(STYLE_KEY)
+        return STYLES.includes(value) ? value : ''
+      } catch {
+        return ''
+      }
+    }
+
+    /** Persist the browser override; storage failures leave the profile default. */
+    function storeStyle(value) {
+      try {
+        window.localStorage?.setItem(STYLE_KEY, value)
+      } catch {
+        // A private/blocked storage context still optimizes with the default.
+      }
     }
 
     // ---- shared rewrite state -------------------------------------------------
@@ -68,6 +118,7 @@ window.__ModuleLoader__.load({
       sessionId: null,
       provider: '',
       model: '',
+      outputStyle: '',
       backup: null,
     }
     const listeners = new Set()
@@ -134,13 +185,19 @@ window.__ModuleLoader__.load({
         sessionId,
         provider: '',
         model: '',
+        outputStyle: '',
         backup: null,
       })
       try {
         const response = await fetch(ENDPOINT, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ sessionId, draft: draft.slice(0, MAX_DRAFT_CHARS) }),
+          body: JSON.stringify({
+            sessionId,
+            draft: draft.slice(0, MAX_DRAFT_CHARS),
+            // Omitted when unset so the Host applies its profile Config default.
+            outputStyle: readStoredStyle() || undefined,
+          }),
           signal: local.signal,
         })
         if (!response.ok || response.body === null) {
@@ -152,7 +209,11 @@ window.__ModuleLoader__.load({
         await consumeStream(response, local.signal, (event) => {
           if (event === null || typeof event !== 'object') return
           if (event.type === 'meta') {
-            setState({ provider: String(event.provider ?? ''), model: String(event.model ?? '') })
+            setState({
+              provider: String(event.provider ?? ''),
+              model: String(event.model ?? ''),
+              outputStyle: STYLES.includes(event.outputStyle) ? event.outputStyle : '',
+            })
           } else if (event.type === 'delta') {
             text += typeof event.text === 'string' ? event.text : ''
             setState({ live: text })
@@ -325,6 +386,92 @@ window.__ModuleLoader__.load({
       }
     }
 
+    const settingRowStyle = {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 24,
+      padding: '16px 0',
+      borderBottom: '0.5px solid var(--dsw-alias-border-l2)',
+    }
+    const settingLabelStyle = { minWidth: 0 }
+    const settingTitleStyle = { fontSize: 14, lineHeight: '20px' }
+    const settingHintStyle = {
+      marginTop: 4,
+      maxWidth: 520,
+      fontSize: 12,
+      lineHeight: '18px',
+      color: 'var(--dsw-alias-label-secondary)',
+    }
+    const settingSelectStyle = {
+      flex: 'none',
+      font: 'inherit',
+      fontSize: 13,
+      padding: '6px 10px',
+      borderRadius: 8,
+      border: '1px solid var(--dsw-alias-border-l1)',
+      background: 'var(--dsw-alias-bg-layer-1)',
+      color: 'var(--dsw-alias-label-primary)',
+      cursor: 'pointer',
+      minWidth: 240,
+    }
+
+    /**
+     * General settings row: pick the rewrite shape. The value is a browser
+     * override; until it is changed the row shows the Host's Config default,
+     * fetched from the package's own defaults endpoint.
+     */
+    function createStyleSetting(t) {
+      return function StyleSetting() {
+        const [style, setStyle] = useState(() => readStoredStyle() || 'plain')
+
+        useEffect(() => {
+          if (readStoredStyle() !== '') return undefined
+          let cancelled = false
+          fetch(DEFAULTS_ENDPOINT)
+            .then((response) => (response.ok ? response.json() : null))
+            .then((data) => {
+              if (cancelled || data === null) return
+              if (STYLES.includes(data.outputStyle) && readStoredStyle() === '') setStyle(data.outputStyle)
+            })
+            .catch(() => {})
+          return () => {
+            cancelled = true
+          }
+        }, [])
+
+        const onChange = (event) => {
+          const value = event.target.value
+          if (!STYLES.includes(value)) return
+          storeStyle(value)
+          setStyle(value)
+        }
+
+        return h(
+          'div',
+          { style: settingRowStyle },
+          h(
+            'div',
+            { style: settingLabelStyle },
+            h('div', { style: settingTitleStyle }, t('styleRowTitle')),
+            h('div', { style: settingHintStyle }, t('styleRowDescription')),
+          ),
+          h(
+            'select',
+            {
+              style: settingSelectStyle,
+              value: style,
+              'aria-label': t('styleRowTitle'),
+              onChange,
+            },
+            h('option', { value: 'plain' }, t('stylePlain')),
+            h('option', { value: 'sections' }, t('styleSections')),
+            h('option', { value: 'role-task-goal' }, t('styleRoleTaskGoal')),
+          ),
+        )
+      }
+    }
+
     function createResultDock(t) {
       return function OptimizerResultDock(props) {
         const state = useSyncExternalStore(subscribe, getSnapshot)
@@ -355,7 +502,10 @@ window.__ModuleLoader__.load({
 
         const text = state.result || state.live
         const reasoning = state.status === 'loading' && text === ''
-        const showModel = state.provider !== '' || state.model !== ''
+        const modelLabel = [state.provider, state.model].filter(Boolean).join(' / ')
+        const styleLabel =
+          state.outputStyle !== '' ? t(STYLE_SHORT_KEYS[state.outputStyle] ?? 'stylePlainShort') : ''
+        const badgeText = [modelLabel, styleLabel].filter(Boolean).join(' · ')
 
         const writeDraft = (next) => {
           if (actions === undefined || actions === null) return false
@@ -407,9 +557,7 @@ window.__ModuleLoader__.load({
               { style: headerStyle },
               SPARKLE,
               h('span', { style: titleStyle }, t('panelTitle')),
-              showModel
-                ? h('span', { style: badgeStyle }, [state.provider, state.model].filter(Boolean).join(' / '))
-                : null,
+              badgeText !== '' ? h('span', { style: badgeStyle }, badgeText) : null,
             ),
             reasoning ? h('div', { style: hintStyle, role: 'status' }, t('panelAnalyzing')) : null,
             state.status === 'error'
@@ -493,6 +641,13 @@ window.__ModuleLoader__.load({
               label: () => t('panelTitle'),
             },
             createResultDock(t),
+          ),
+        )
+
+        ctx.slots.inject('settings.general.item', () =>
+          ctx.slots.register(
+            { name: 'settings.general.item', id: 'prompt-optimizer', order: 55 },
+            createStyleSetting(t),
           ),
         )
       },

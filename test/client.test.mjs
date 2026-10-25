@@ -5,7 +5,8 @@
  * is evaluated in a `vm` sandbox with a mocked `require('react')` and then
  * rendered by calling the registered slot components directly. This checks the
  * parts a type checker would normally cover for a compiled plugin: module
- * identity, slot registrations, host dock geometry, and every state transition.
+ * identity, slot registrations, host dock geometry, the style preference row,
+ * and every state transition.
  */
 
 import assert from 'node:assert/strict'
@@ -15,9 +16,11 @@ import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 
 const CLIENT_PATH = fileURLToPath(new URL('../client.js', import.meta.url))
+const STYLE_KEY = 'dsh-prompt-optimizer.outputStyle'
 
-async function loadDefinition() {
+async function loadDefinition(seed = []) {
   const source = await readFile(CLIENT_PATH, 'utf8')
+  const storage = new Map(seed)
   let definition
   const sandbox = {
     window: {
@@ -25,6 +28,11 @@ async function loadDefinition() {
         load: (value) => {
           definition = value
         },
+      },
+      localStorage: {
+        getItem: (key) => (storage.has(key) ? storage.get(key) : null),
+        setItem: (key, value) => storage.set(key, String(value)),
+        removeItem: (key) => storage.delete(key),
       },
     },
     document: { addEventListener() {}, removeEventListener() {} },
@@ -42,7 +50,7 @@ async function loadDefinition() {
   vm.createContext(sandbox)
   vm.runInContext(source, sandbox, { filename: 'client.js' })
   assert.ok(definition, 'module did not call window.__ModuleLoader__.load')
-  return definition
+  return { definition, storage }
 }
 
 const IDLE = {
@@ -54,11 +62,12 @@ const IDLE = {
   sessionId: null,
   provider: '',
   model: '',
+  outputStyle: '',
   backup: null,
 }
 
-async function createHarness() {
-  const definition = await loadDefinition()
+async function createHarness(seed = []) {
+  const { definition, storage } = await loadDefinition(seed)
   const holder = { state: IDLE }
   const dicts = {}
   const registrations = []
@@ -110,11 +119,13 @@ async function createHarness() {
     definition,
     dict: dicts['prompt-optimizer'],
     registrations,
+    storage,
     setState: (next) => {
       holder.state = next
     },
     Dock: bySlot('conversation.input.dock')?.component,
     Button: bySlot('conversation.input.right')?.component,
+    Settings: bySlot('settings.general.item')?.component,
   }
 }
 
@@ -137,6 +148,7 @@ const nodes = (node, acc = []) => {
 }
 
 const buttons = (tree) => nodes(tree).filter((node) => node.type === 'button')
+const selects = (tree) => nodes(tree).filter((node) => node.type === 'select')
 
 const slotProps = (sessionId = 'sess-a') => ({
   sessionId,
@@ -150,12 +162,11 @@ test('module identity, injection and registrations', async () => {
   assert.deepEqual(h.registrations.map((r) => r.name).sort(), [
     'conversation.input.dock',
     'conversation.input.right',
+    'settings.general.item',
   ])
   for (const reg of h.registrations) {
     assert.equal(reg.id, 'prompt-optimizer')
-    assert.equal(reg.order, 25)
-    assert.equal(typeof reg.label, 'function')
-    assert.equal(typeof reg.label(), 'string')
+    assert.ok(Number.isInteger(reg.order))
   }
   assert.ok(h.dict, 'locale dictionary registered')
 })
@@ -174,7 +185,7 @@ test('loading shows the progress status', async () => {
   assert.match(text(h.Dock(slotProps())), new RegExp(h.dict.panelAnalyzing))
 })
 
-test('result state offers Use, Copy and Close', async () => {
+test('result state offers Use, Copy and Close, and names the style', async () => {
   const h = await createHarness()
   h.setState({
     ...IDLE,
@@ -185,13 +196,16 @@ test('result state offers Use, Copy and Close', async () => {
     live: 'OPT',
     provider: 'deepseek-account',
     model: 'deepseek-flash',
+    outputStyle: 'sections',
   })
   const tree = h.Dock(slotProps())
   assert.deepEqual(
     buttons(tree).map(text),
     [h.dict.panelUse, h.dict.panelCopy, h.dict.panelClose],
   )
-  assert.match(text(tree), /deepseek-account \/ deepseek-flash/)
+  const header = text(tree)
+  assert.ok(header.includes('deepseek-account / deepseek-flash'), 'model badge missing')
+  assert.ok(header.includes(h.dict.styleSectionsShort), 'style missing from the badge')
 })
 
 test('applied state makes Undo primary and announces the change', async () => {
@@ -245,4 +259,35 @@ test('composer control reflects draft and busy state', async () => {
   assert.equal(buttons(h.Button(slotProps()))[0].props.disabled, false)
   h.setState({ ...IDLE, status: 'loading', sessionId: 'sess-a' })
   assert.equal(buttons(h.Button(slotProps()))[0].props.disabled, true)
+})
+
+test('style setting renders all three styles and persists the choice', async () => {
+  const h = await createHarness()
+  const tree = h.Settings()
+  const select = selects(tree)[0]
+  assert.ok(select, 'settings row has no select')
+  assert.deepEqual(
+    select.children.map((option) => option.props.value),
+    ['plain', 'sections', 'role-task-goal'],
+  )
+  assert.deepEqual(
+    select.children.map(text),
+    [h.dict.stylePlain, h.dict.styleSections, h.dict.styleRoleTaskGoal],
+  )
+  assert.equal(select.props.value, 'plain', 'defaults to the plain style')
+  assert.equal(select.props['aria-label'], h.dict.styleRowTitle)
+  assert.ok(text(tree).includes(h.dict.styleRowTitle), 'row label missing')
+
+  select.props.onChange({ target: { value: 'role-task-goal' } })
+  assert.equal(h.storage.get(STYLE_KEY), 'role-task-goal')
+})
+
+test('style setting starts from a stored override', async () => {
+  const h = await createHarness([[STYLE_KEY, 'sections']])
+  assert.equal(selects(h.Settings())[0].props.value, 'sections')
+})
+
+test('an invalid stored value is ignored', async () => {
+  const h = await createHarness([[STYLE_KEY, 'nonsense']])
+  assert.equal(selects(h.Settings())[0].props.value, 'plain')
 })

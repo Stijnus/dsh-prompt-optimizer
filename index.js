@@ -1,9 +1,14 @@
 /**
  * Host half of the Prompt Optimizer plugin.
  *
- * One same-origin SSE endpoint rewrites the composer draft into a structured
- * prompt:
+ * Two same-origin endpoints serve the composer and its settings row:
  * - `POST /prompt-optimizer/optimize` streams `meta`, `delta`, `done`, `error`.
+ * - `GET  /prompt-optimizer/defaults` reports the profile-configured style.
+ *
+ * `outputStyle` selects the shape the engine emits: `plain` (heading-free
+ * paragraphs), `sections` (## Role / ## Task / ## Context / ## Format) or
+ * `role-task-goal` (Role: / Task: / Goal: lines). It is a profile-level `Config`
+ * default, overridable per request by the Client's General settings row.
  *
  * The rewrite itself is not re-implemented here: the system prompt comes from
  * the `oss-prompt-optimizer` package (in-harness name "Prompt Optimizer"),
@@ -13,14 +18,38 @@
  * Session, and the user's draft is never modified by the Host.
  */
 
+import z from '@deepseek-ai/schemastery'
 import { buildOptimizePrompt, detectLanguage } from 'oss-prompt-optimizer'
 
 export const name = 'prompt-optimizer'
 
 export const inject = ['connection', 'llm', 'sessions', 'webServer']
 
+/**
+ * Profile-level default for the rewrite shape. Override it in `cordis.patch.yml`:
+ *
+ * ```yaml
+ * - id: prompt-optimizer
+ *   name: '@stijnus/dsh-prompt-optimizer'
+ *   config:
+ *     outputStyle: sections
+ * ```
+ */
+export const Config = z.object({
+  outputStyle: z.union(['plain', 'sections', 'role-task-goal']).default('plain'),
+})
+
+/** Output shapes accepted by `buildOptimizePrompt()`. */
+const STYLES = ['plain', 'sections', 'role-task-goal']
+
+/** Fallback when neither the profile config nor the request names a style. */
+const DEFAULT_STYLE = 'plain'
+
 /** Same-origin streaming endpoint the Client half posts to. */
 const ENDPOINT = '/prompt-optimizer/optimize'
+
+/** Same-origin endpoint the settings row reads its effective default from. */
+const DEFAULTS_ENDPOINT = '/prompt-optimizer/defaults'
 
 /** Request bound: one draft per call. */
 const MAX_BODY_BYTES = 32 * 1024
@@ -45,26 +74,69 @@ const USER_TURN = {
 }
 
 /**
- * Register the rewrite endpoint.
+ * Register the rewrite and defaults endpoints.
  * @param ctx - context exposing llm, sessions, connection, and the web server.
+ * @param config - validated `Config` row (plain values, or refs for the
+ *   service-class form; both shapes are accepted).
  */
-export function apply(ctx) {
+export function apply(ctx, config) {
+  const defaults = { outputStyle: styleOf(config?.outputStyle) ?? DEFAULT_STYLE }
+
   ctx.effect(() =>
     ctx.webServer.register({
       kind: 'exact',
       path: ENDPOINT,
-      handler: (request, response) => serve(ctx, request, response),
+      handler: (request, response) => serve(ctx, defaults, request, response),
     }),
   )
+
+  ctx.effect(() =>
+    ctx.webServer.register({
+      kind: 'exact',
+      path: DEFAULTS_ENDPOINT,
+      handler: (request, response) => serveDefaults(ctx, defaults, request, response),
+    }),
+  )
+}
+
+/** Read a style string from a plain config value or a schemastery ref. */
+function styleOf(value) {
+  const raw = typeof value === 'string' ? value : typeof value?.get === 'function' ? value.get() : undefined
+  return typeof raw === 'string' && STYLES.includes(raw) ? raw : undefined
+}
+
+/**
+ * Admit one defaults read and report the effective profile default.
+ * @param ctx - plugin context.
+ * @param defaults - resolved profile defaults.
+ * @param request - Node request.
+ * @param response - Node response.
+ */
+async function serveDefaults(ctx, defaults, request, response) {
+  const admission = ctx.connection.admit(request)
+  if ('rejection' in admission) {
+    respond(response, admission.rejection, { reason: 'unauthorized' })
+    return
+  }
+  if (admission.peer.principal.kind !== 'owner') {
+    respond(response, 403, { reason: 'forbidden' })
+    return
+  }
+  if (request.method !== 'GET') {
+    respond(response, 405, { reason: 'method-not-allowed' })
+    return
+  }
+  respond(response, 200, { outputStyle: defaults.outputStyle, styles: STYLES })
 }
 
 /**
  * Admit, validate, and stream one rewrite.
  * @param ctx - plugin context.
+ * @param defaults - resolved profile defaults.
  * @param request - Node request.
  * @param response - Node response.
  */
-async function serve(ctx, request, response) {
+async function serve(ctx, defaults, request, response) {
   try {
     const admission = ctx.connection.admit(request)
     if ('rejection' in admission) {
@@ -122,6 +194,11 @@ async function serve(ctx, request, response) {
       return
     }
 
+    // A per-request override wins; an unknown value falls back to the profile
+    // default instead of failing the rewrite.
+    const requestedStyle = typeof body.outputStyle === 'string' ? body.outputStyle : ''
+    const outputStyle = STYLES.includes(requestedStyle) ? requestedStyle : defaults.outputStyle
+
     let metaLanguage
     let system
     try {
@@ -131,7 +208,7 @@ async function serve(ctx, request, response) {
       // injected "- 输出语言固定为：en" line. `outputStyle: 'plain'` keeps the
       // answer a heading-free prompt body, which is what the composer holds.
       metaLanguage = detectLanguage(draft)
-      system = buildOptimizePrompt(draft, 'auto', undefined, undefined, 'plain', metaLanguage)
+      system = buildOptimizePrompt(draft, 'auto', undefined, undefined, outputStyle, metaLanguage)
     } catch (error) {
       respond(response, 200, { reason: shortReason(error) })
       return
@@ -146,6 +223,7 @@ async function serve(ctx, request, response) {
         provider: route.provider,
         model: route.model,
         language: metaLanguage,
+        outputStyle,
       })
       const text = await runModel(ctx, route, system, metaLanguage, deadline.signal, (delta) => {
         if (!deadline.signal.aborted) sendEvent(response, { type: 'delta', text: delta })
