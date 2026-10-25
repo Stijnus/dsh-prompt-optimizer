@@ -1,0 +1,6 @@
+# Prompt Optimizer bundle: insert the Host half into the composed profile.
+# The row is referenced by package name and resolved through the profile's
+# node_modules (install_bundle links this workspace directory).
+- insert:
+    - id: prompt-optimizer
+      name: dsh-prompt-optimizer

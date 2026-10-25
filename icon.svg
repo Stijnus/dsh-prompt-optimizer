@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Prompt Optimizer">
+  <defs>
+    <linearGradient id="po-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f6feb"/>
+      <stop offset="1" stop-color="#7b3ff2"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="15" fill="url(#po-bg)"/>
+  <path d="M25 16l4.1 10.4L40 30.5l-10.9 4.1L25 45l-4.1-10.4L10 30.5l10.9-4.1L25 16z" fill="#ffffff"/>
+  <path d="M45 32l2.5 6.4 6.5 2.5-6.5 2.5L45 51l-2.5-7.6L36 40.9l6.5-2.5L45 32z" fill="#ffffff" opacity="0.82"/>
+  <rect x="14" y="50" width="36" height="3.5" rx="1.75" fill="#ffffff" opacity="0.55"/>
+</svg>

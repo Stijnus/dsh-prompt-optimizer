@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Prompt Optimizer",
+    "description": "Analyze and rewrite the composer draft into a structured Role/Task/Context/Format prompt before sending, reusing the Prompt Optimizer rewrite engine. Runs on the session's own model."
+  }
+}
