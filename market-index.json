@@ -1,0 +1,65 @@
+{
+  "format": 1,
+  "title": {
+    "en": "Stijnus · Prompt Optimizer",
+    "zh": "Stijnus · 提示词优化"
+  },
+  "description": {
+    "en": "Prompt optimizer for DeepSeek Harness: rewrite the composer draft into a structured prompt.",
+    "zh": "DeepSeek Harness 提示词优化：把输入框草稿改写为结构化提示词。"
+  },
+  "metadata": {
+    "categories": {
+      "ui-experience": {
+        "title": {
+          "en": "UI & Experience",
+          "zh": "界面与体验"
+        }
+      }
+    },
+    "labels": {},
+    "sortKeys": {}
+  },
+  "plugins": [
+    {
+      "name": "@stijnus/dsh-prompt-optimizer",
+      "title": {
+        "en": "Prompt Optimizer",
+        "zh": "提示词优化"
+      },
+      "description": {
+        "en": "Optimize the composer draft before sending: a ✨ control rewrites it into a plain, sections, or role-task-goal prompt, streams the result with Use/Undo, and runs on the session's own model. Reuses the Prompt Optimizer rewrite engine.",
+        "zh": "发送前优化输入框草稿：✨ 按钮把草稿改写为纯文本 / 分段 / 角色·任务·目标三种形态，流式预览并可一键使用或撤销，使用当前会话模型。复用 Prompt Optimizer 改写引擎。"
+      },
+      "author": "stijnus",
+      "homepage": "https://github.com/Stijnus/dsh-prompt-optimizer",
+      "repository": {
+        "url": "https://github.com/Stijnus/dsh-prompt-optimizer"
+      },
+      "metadata": {
+        "category": "ui-experience",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "deepseek-harness",
+          "prompt",
+          "prompt-optimizer",
+          "prompt-engineering",
+          "composer",
+          "提示词优化",
+          "提示词工程"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.2.0",
+          "publishTimestamp": 1792929294,
+          "source": {
+            "type": "npm",
+            "registry": "https://registry.npmjs.org/"
+          }
+        }
+      ]
+    }
+  ]
+}
