@@ -257,16 +257,34 @@ window.__ModuleLoader__.load({
       }
     }
 
+    // The dock slot renders its entries with no width wrapper, so the entry
+    // itself must adopt the host's composer-column geometry: full-bleed is what
+    // a dock entry becomes without it. `--dsh-chat-content-width` is inherited
+    // from the conversation body and already resolves to the transcript /
+    // composer column (clamp 680-920px, user-draggable), which is exactly the
+    // width the host's own dock panels use.
+    const dockStyle = {
+      boxSizing: 'border-box',
+      width: '100%',
+      maxWidth: 'var(--dsh-chat-content-width, 920px)',
+      margin: '0 auto calc(0px - var(--dsh-composer-stack-gap, 6px) - 3px)',
+      flex: 'none',
+    }
+
+    // Dock panels merge into the composer card below: top-only radius, no
+    // bottom border, and no outer gap.
     const panelStyle = {
       display: 'flex',
       flexDirection: 'column',
       gap: 8,
-      padding: '10px 12px',
-      border: '1px solid var(--dsw-alias-border-l1)',
-      borderRadius: 12,
-      background: 'var(--dsw-alias-bg-layer-1)',
+      padding: '10px 14px 12px',
+      border: '0.5px solid var(--dsw-alias-border-l1)',
+      borderBottom: 'none',
+      borderRadius: 'var(--dsw-radius-lg, 12px) var(--dsw-radius-lg, 12px) 0 0',
+      background: 'var(--dsw-specific-menu, var(--dsw-alias-bg-layer-1))',
       color: 'var(--dsw-alias-label-primary)',
       fontSize: 13,
+      overflow: 'hidden',
     }
 
     const headerStyle = { display: 'flex', alignItems: 'center', gap: 8 }
@@ -279,13 +297,18 @@ window.__ModuleLoader__.load({
     }
     const bodyStyle = {
       margin: 0,
+      paddingRight: 2,
       fontFamily: 'inherit',
       fontSize: 13,
       lineHeight: 1.55,
       whiteSpace: 'pre-wrap',
       wordBreak: 'break-word',
-      maxHeight: '32vh',
+      maxHeight: '40vh',
       overflowY: 'auto',
+    }
+    const appliedStyle = {
+      color: 'var(--dsw-alias-state-success-primary)',
+      fontSize: 12,
     }
     const hintStyle = { color: 'var(--dsw-alias-label-secondary)', fontSize: 12 }
 
@@ -370,65 +393,73 @@ window.__ModuleLoader__.load({
           }
         }
 
+        const applied = state.backup !== null
+        const canApply = text.trim() !== '' && state.status !== 'loading' && !applied
+
         return h(
           'div',
-          { style: panelStyle, role: 'region', 'aria-label': t('panelRegion') },
+          { style: dockStyle },
           h(
             'div',
-            { style: headerStyle },
-            SPARKLE,
-            h('span', { style: titleStyle }, t('panelTitle')),
-            showModel
-              ? h('span', { style: badgeStyle }, [state.provider, state.model].filter(Boolean).join(' / '))
-              : null,
-          ),
-          reasoning ? h('div', { style: hintStyle, role: 'status' }, t('panelAnalyzing')) : null,
-          state.status === 'error'
-            ? h(
-                'div',
-                { style: { color: 'var(--dsw-alias-state-error-primary)', fontSize: 12 }, role: 'alert' },
-                t('panelError').replace('{reason}', state.error),
-              )
-            : null,
-          text !== '' ? h('pre', { style: bodyStyle }, text) : null,
-          state.status !== 'error' && text === '' && !reasoning
-            ? h('div', { style: hintStyle }, t('panelEmpty'))
-            : null,
-          state.backup !== null ? h('div', { style: { color: 'var(--dsw-alias-state-success-primary)', fontSize: 12 } }, t('panelApplied')) : null,
-          h(
-            'div',
-            { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+            { style: panelStyle, role: 'region', 'aria-label': t('panelRegion') },
             h(
-              'button',
-              {
-                type: 'button',
-                style: { ...actionStyle(true), ...(state.backup !== null ? { opacity: 0.6 } : {}) },
-                disabled: text.trim() === '' || state.status === 'loading' || state.backup !== null,
-                onClick: onUse,
-              },
-              t('panelUse'),
+              'div',
+              { style: headerStyle },
+              SPARKLE,
+              h('span', { style: titleStyle }, t('panelTitle')),
+              showModel
+                ? h('span', { style: badgeStyle }, [state.provider, state.model].filter(Boolean).join(' / '))
+                : null,
             ),
-            h(
-              'button',
-              {
-                type: 'button',
-                style: actionStyle(false),
-                disabled: text.trim() === '',
-                onClick: onCopy,
-              },
-              copied ? t('panelCopied') : t('panelCopy'),
-            ),
-            state.backup !== null
-              ? h('button', { type: 'button', style: actionStyle(false), onClick: onUndo }, t('panelUndo'))
+            reasoning ? h('div', { style: hintStyle, role: 'status' }, t('panelAnalyzing')) : null,
+            state.status === 'error'
+              ? h(
+                  'div',
+                  { style: { color: 'var(--dsw-alias-state-error-primary)', fontSize: 12 }, role: 'alert' },
+                  t('panelError').replace('{reason}', state.error),
+                )
               : null,
+            text !== '' ? h('pre', { style: bodyStyle }, text) : null,
+            state.status !== 'error' && text === '' && !reasoning
+              ? h('div', { style: hintStyle }, t('panelEmpty'))
+              : null,
+            // After applying, the primary action becomes Undo; the note is a live
+            // region so a screen reader announces the draft change.
+            applied ? h('div', { style: appliedStyle, role: 'status', 'aria-live': 'polite' }, t('panelApplied')) : null,
             h(
-              'button',
-              {
-                type: 'button',
-                style: { ...actionStyle(false), marginLeft: 'auto' },
-                onClick: close,
-              },
-              t('panelClose'),
+              'div',
+              { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+              applied
+                ? h('button', { type: 'button', style: actionStyle(true), onClick: onUndo }, t('panelUndo'))
+                : h(
+                    'button',
+                    {
+                      type: 'button',
+                      style: canApply ? actionStyle(true) : { ...actionStyle(true), opacity: 0.55, cursor: 'default' },
+                      disabled: !canApply,
+                      onClick: onUse,
+                    },
+                    t('panelUse'),
+                  ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  style: actionStyle(false),
+                  disabled: text.trim() === '',
+                  onClick: onCopy,
+                },
+                copied ? t('panelCopied') : t('panelCopy'),
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  style: { ...actionStyle(false), marginLeft: 'auto' },
+                  onClick: close,
+                },
+                t('panelClose'),
+              ),
             ),
           ),
         )

@@ -94,10 +94,24 @@ installation at runtime, the same way `dsh-cost-meter` resolves
 - Rewrite engine verified in isolation: both a Chinese and an English draft
   produce a meta-prompt that embeds the draft verbatim, carries the
   plain-output contract and the instruction-as-data guardrail.
-- **Not verified:** the rendered ✨ control, the streaming panel, and a real
-  model round-trip need browser control over the running Harness page, which
-  this session does not have. Replacing an installed package may also require a
-  Harness restart to load a fresh Host JS generation.
+- Render (user-supplied screenshot of the live panel): the ✨ control, the
+  streamed result, the model badge, the applied note, and the Use/Copy/Undo/Close
+  row all render, and a real model round-trip completed.
+
+### UI layout rules (reviewed against the host)
+
+`conversation.input.dock` renders entries with **no** width wrapper, so a dock
+entry that does not constrain itself becomes full-bleed. The panel therefore
+adopts the host's own dock geometry:
+
+- `max-width: var(--dsh-chat-content-width, 920px)` — the inherited transcript /
+  composer column (`clamp(680px, column * .64, 920px)`, user-draggable).
+- `margin: 0 auto calc(0px - var(--dsh-composer-stack-gap, 6px) - 3px)` and
+  top-only `border-radius` with no bottom border, so the panel merges into the
+  composer card instead of floating above it.
+
+After a draft is replaced, **Undo** becomes the primary action and the applied
+note is an `aria-live` status region.
 
 ## License
 
