@@ -54,6 +54,21 @@ appears in Settings → Plugins as **Prompt Optimizer**.
 
 Compatibility: DSH `>=0.2.1-rc.3 <0.3.0-0`, Node `>=20`.
 
+## Market
+
+The plugin is listed in the Stijnus market index that the desktop profile already
+reads, so it appears in Settings → Plugin Market next to Composer Predictions:
+
+- `https://raw.githubusercontent.com/Stijnus/dsh-composer-predictions/main/market-index.json`
+
+This repository also publishes its own format-1 index, for anyone who wants a
+focused source:
+
+- `https://raw.githubusercontent.com/Stijnus/dsh-prompt-optimizer/main/market-index.json`
+
+Market sources are cached for 10 minutes per URL by the Host, so a newly
+published version can take that long to show up in an open market panel.
+
 ## Where the rewrite logic lives
 
 This plugin does **not** re-implement prompt rewriting. It imports the engine
