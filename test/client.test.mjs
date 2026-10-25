@@ -158,7 +158,7 @@ const slotProps = (sessionId = 'sess-a') => ({
 
 test('module identity, injection and registrations', async () => {
   const h = await createHarness()
-  assert.equal(h.definition.id, '@stijnus/dsh-prompt-optimizer')
+  assert.equal(h.definition.id, 'dsh-prompt-rewrite')
   assert.deepEqual(h.registrations.map((r) => r.name).sort(), [
     'conversation.input.dock',
     'conversation.input.right',

@@ -1,4 +1,4 @@
-# @stijnus/dsh-prompt-optimizer
+# dsh-prompt-rewrite
 
 A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin that
 optimizes the prompt you are about to send.
@@ -28,7 +28,7 @@ everyone through the plugin's `Config`:
 
 ```yaml
 - id: prompt-optimizer
-  name: '@stijnus/dsh-prompt-optimizer'
+  name: 'dsh-prompt-rewrite'
   config:
     outputStyle: sections
 ```
@@ -46,7 +46,7 @@ produced it.
 ## Install
 
 ```sh
-dsh plugin --profile web add @stijnus/dsh-prompt-optimizer
+dsh plugin --profile web add dsh-prompt-rewrite
 ```
 
 Then restart the Harness (or refresh the page for the Client half). The plugin

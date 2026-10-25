@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.2 — 2026-10-25
+
+### Changed
+
+- Renamed the npm package from `@stijnus/dsh-prompt-optimizer` to `dsh-prompt-rewrite`: the unscoped
+  `dsh-prompt-optimizer` name belongs to a different author on npm. The bundle
+  row, client plugin id and install command changed with it; the old scoped name
+  is deprecated. The saved output-style key and the `oss-prompt-optimizer`
+  rewrite engine are unchanged, so existing preferences keep working.
+
 ## 0.2.1 — 2026-10-25
 
 - Incomplete streams are reported as errors and cannot replace the draft.

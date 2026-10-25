@@ -3,4 +3,4 @@
 # node_modules.
 - insert:
     - id: prompt-optimizer
-      name: '@stijnus/dsh-prompt-optimizer'
+      name: 'dsh-prompt-rewrite'

@@ -18,7 +18,7 @@ npm must be told which repository and workflow may publish this package.
 
 1. Create the `@stijnus` npm scope (if it does not exist) and make sure the
    account owns it.
-2. Open <https://www.npmjs.com/package/@stijnus/dsh-prompt-optimizer> →
+2. Open <https://www.npmjs.com/package/dsh-prompt-rewrite> →
    **Settings**.
 3. Under **Trusted publishing**, add a **GitHub Actions** publisher:
    - Organization or user: `Stijnus`

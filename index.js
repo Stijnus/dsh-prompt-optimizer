@@ -30,7 +30,7 @@ export const inject = ['connection', 'llm', 'sessions', 'webServer']
  *
  * ```yaml
  * - id: prompt-optimizer
- *   name: '@stijnus/dsh-prompt-optimizer'
+ *   name: 'dsh-prompt-rewrite'
  *   config:
  *     outputStyle: sections
  * ```

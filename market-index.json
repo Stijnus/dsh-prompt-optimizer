@@ -22,7 +22,7 @@
   },
   "plugins": [
     {
-      "name": "@stijnus/dsh-prompt-optimizer",
+      "name": "dsh-prompt-rewrite",
       "title": {
         "en": "Prompt Optimizer",
         "zh": "提示词优化"

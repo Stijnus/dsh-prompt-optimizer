@@ -12,7 +12,7 @@
  */
 
 window.__ModuleLoader__.load({
-  id: '@stijnus/dsh-prompt-optimizer',
+  id: 'dsh-prompt-rewrite',
   factory(require) {
     const React = require('react')
     const h = React.createElement
@@ -291,7 +291,7 @@ window.__ModuleLoader__.load({
           'button',
           {
             type: 'button',
-            className: 'dsh-prompt-optimizer-trigger',
+            className: 'dsh-prompt-rewrite-trigger',
             'aria-label': label,
             title: label,
             'aria-busy': busy ? 'true' : undefined,
