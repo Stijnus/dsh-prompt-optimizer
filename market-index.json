@@ -52,11 +52,15 @@
       },
       "versions": [
         {
-          "version": "0.2.0",
-          "publishTimestamp": 1792929294,
+          "version": "0.2.1",
+          "publishTimestamp": 1792939228,
           "source": {
             "type": "npm",
             "registry": "https://registry.npmjs.org/"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.3 <0.3.0-0",
+            "node": ">=20"
           }
         }
       ]
