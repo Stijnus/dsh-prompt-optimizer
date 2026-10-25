@@ -1,9 +1,8 @@
 {
-  "name": "dsh-prompt-optimizer",
+  "name": "@stijnus/dsh-prompt-optimizer",
   "version": "0.1.0",
-  "private": true,
+  "description": "Optimize the DeepSeek Harness composer draft into a structured prompt through the session model, reusing the Prompt Optimizer rewrite engine.",
   "type": "module",
-  "description": "Optimize the composer draft into a structured prompt through the harness LLM, reusing the Prompt Optimizer (oss-prompt-optimizer) rewrite engine.",
   "license": "MIT",
   "exports": {
     ".": "./index.js",
@@ -17,8 +16,33 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "prompt",
+    "prompt-optimizer",
+    "prompt-engineering",
+    "composer"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Stijnus/dsh-prompt-optimizer.git"
+  },
+  "homepage": "https://github.com/Stijnus/dsh-prompt-optimizer#readme",
+  "bugs": {
+    "url": "https://github.com/Stijnus/dsh-prompt-optimizer/issues"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -36,7 +60,8 @@
     }
   },
   "engines": {
-    "dsh": ">=0.2.1-rc.3 <0.3.0-0"
+    "dsh": ">=0.2.1-rc.3 <0.3.0-0",
+    "node": ">=20"
   },
   "dependencies": {
     "oss-prompt-optimizer": "^1.13.1"

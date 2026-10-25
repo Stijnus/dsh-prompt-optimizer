@@ -1,0 +1,248 @@
+/**
+ * Render tests for the browser half.
+ *
+ * The Client artifact is a plain `window.__ModuleLoader__.load()` module, so it
+ * is evaluated in a `vm` sandbox with a mocked `require('react')` and then
+ * rendered by calling the registered slot components directly. This checks the
+ * parts a type checker would normally cover for a compiled plugin: module
+ * identity, slot registrations, host dock geometry, and every state transition.
+ */
+
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+import vm from 'node:vm'
+
+const CLIENT_PATH = fileURLToPath(new URL('../client.js', import.meta.url))
+
+async function loadDefinition() {
+  const source = await readFile(CLIENT_PATH, 'utf8')
+  let definition
+  const sandbox = {
+    window: {
+      __ModuleLoader__: {
+        load: (value) => {
+          definition = value
+        },
+      },
+    },
+    document: { addEventListener() {}, removeEventListener() {} },
+    navigator: { clipboard: { writeText: async () => {} } },
+    fetch: async () => {
+      throw new Error('fetch must not run in a render test')
+    },
+    AbortController,
+    TextDecoder,
+    JSON,
+    console,
+    setTimeout,
+    clearTimeout,
+  }
+  vm.createContext(sandbox)
+  vm.runInContext(source, sandbox, { filename: 'client.js' })
+  assert.ok(definition, 'module did not call window.__ModuleLoader__.load')
+  return definition
+}
+
+const IDLE = {
+  open: false,
+  status: 'idle',
+  live: '',
+  result: '',
+  error: '',
+  sessionId: null,
+  provider: '',
+  model: '',
+  backup: null,
+}
+
+async function createHarness() {
+  const definition = await loadDefinition()
+  const holder = { state: IDLE }
+  const dicts = {}
+  const registrations = []
+
+  const React = {
+    createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat() }),
+    useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
+    useEffect: () => {},
+    useSyncExternalStore: () => holder.state,
+  }
+
+  const mod = definition.factory((id) => {
+    assert.equal(id, 'react', `unexpected require(${id})`)
+    return React
+  })
+
+  const ctx = {
+    effect: (callback) => {
+      const dispose = callback()
+      return typeof dispose === 'function' ? dispose : () => {}
+    },
+    locale: {
+      bind: (ns) => (key, vars) => {
+        let out = (dicts[ns] ?? {})[key] ?? key
+        if (vars) for (const [k, v] of Object.entries(vars)) out = out.split(`{${k}}`).join(String(v))
+        return out
+      },
+      register: (ns, tables) => {
+        dicts[ns] = tables.en
+        return () => {}
+      },
+    },
+    slots: {
+      inject: (_slot, callback) => {
+        callback()
+        return () => {}
+      },
+      register: (options, component) => {
+        registrations.push({ ...options, component })
+        return () => {}
+      },
+    },
+  }
+
+  mod.apply(ctx)
+
+  const bySlot = (slot) => registrations.find((entry) => entry.name === slot)
+  return {
+    definition,
+    dict: dicts['prompt-optimizer'],
+    registrations,
+    setState: (next) => {
+      holder.state = next
+    },
+    Dock: bySlot('conversation.input.dock')?.component,
+    Button: bySlot('conversation.input.right')?.component,
+  }
+}
+
+const text = (node) => {
+  if (node === null || node === undefined || node === false) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(text).join('')
+  return (node.children ?? []).map(text).join('')
+}
+
+const nodes = (node, acc = []) => {
+  if (node === null || node === undefined || typeof node !== 'object') return acc
+  if (Array.isArray(node)) {
+    for (const child of node) nodes(child, acc)
+    return acc
+  }
+  acc.push(node)
+  for (const child of node.children ?? []) nodes(child, acc)
+  return acc
+}
+
+const buttons = (tree) => nodes(tree).filter((node) => node.type === 'button')
+
+const slotProps = (sessionId = 'sess-a') => ({
+  sessionId,
+  useInput: (selector) => selector({ draft: 'my draft' }),
+  inputActions: { setDraft() {}, captureInsertion() {}, insertText() {} },
+})
+
+test('module identity, injection and registrations', async () => {
+  const h = await createHarness()
+  assert.equal(h.definition.id, '@stijnus/dsh-prompt-optimizer')
+  assert.deepEqual(h.registrations.map((r) => r.name).sort(), [
+    'conversation.input.dock',
+    'conversation.input.right',
+  ])
+  for (const reg of h.registrations) {
+    assert.equal(reg.id, 'prompt-optimizer')
+    assert.equal(reg.order, 25)
+    assert.equal(typeof reg.label, 'function')
+    assert.equal(typeof reg.label(), 'string')
+  }
+  assert.ok(h.dict, 'locale dictionary registered')
+})
+
+test('dock is hidden while idle and for another session', async () => {
+  const h = await createHarness()
+  assert.equal(h.Dock(slotProps()), null)
+  h.setState({ ...IDLE, open: true, status: 'done', sessionId: 'sess-a', result: 'X', live: 'X' })
+  assert.equal(h.Dock(slotProps('sess-other')), null)
+  assert.notEqual(h.Dock(slotProps('sess-a')), null)
+})
+
+test('loading shows the progress status', async () => {
+  const h = await createHarness()
+  h.setState({ ...IDLE, open: true, status: 'loading', sessionId: 'sess-a' })
+  assert.match(text(h.Dock(slotProps())), new RegExp(h.dict.panelAnalyzing))
+})
+
+test('result state offers Use, Copy and Close', async () => {
+  const h = await createHarness()
+  h.setState({
+    ...IDLE,
+    open: true,
+    status: 'done',
+    sessionId: 'sess-a',
+    result: 'OPT',
+    live: 'OPT',
+    provider: 'deepseek-account',
+    model: 'deepseek-flash',
+  })
+  const tree = h.Dock(slotProps())
+  assert.deepEqual(
+    buttons(tree).map(text),
+    [h.dict.panelUse, h.dict.panelCopy, h.dict.panelClose],
+  )
+  assert.match(text(tree), /deepseek-account \/ deepseek-flash/)
+})
+
+test('applied state makes Undo primary and announces the change', async () => {
+  const h = await createHarness()
+  h.setState({
+    ...IDLE,
+    open: true,
+    status: 'done',
+    sessionId: 'sess-a',
+    result: 'OPT',
+    live: 'OPT',
+    provider: 'deepseek-account',
+    model: 'deepseek-flash',
+    backup: 'my draft',
+  })
+  const tree = h.Dock(slotProps())
+  assert.deepEqual(
+    buttons(tree).map(text),
+    [h.dict.panelUndo, h.dict.panelCopy, h.dict.panelClose],
+  )
+  assert.equal(buttons(tree)[0].props.style.background, 'var(--dsw-alias-brand-primary)')
+  const live = nodes(tree).filter((node) => node.props?.['aria-live'] === 'polite')
+  assert.equal(live.length, 1)
+  assert.equal(text(live[0]), h.dict.panelApplied)
+})
+
+test('dock adopts the host composer column geometry', async () => {
+  const h = await createHarness()
+  h.setState({ ...IDLE, open: true, status: 'done', sessionId: 'sess-a', result: 'OPT', live: 'OPT' })
+  const tree = h.Dock(slotProps())
+  assert.equal(tree.props.style.maxWidth, 'var(--dsh-chat-content-width, 920px)')
+  assert.equal(tree.props.style.width, '100%')
+  assert.match(String(tree.props.style.margin), /--dsh-composer-stack-gap/)
+  const surface = tree.children[0]
+  assert.equal(surface.props.style.borderBottom, 'none')
+  assert.match(String(surface.props.style.borderRadius), /0 0$/)
+})
+
+test('error state renders an alert with the reason', async () => {
+  const h = await createHarness()
+  h.setState({ ...IDLE, open: true, status: 'error', sessionId: 'sess-a', error: 'boom' })
+  const alerts = nodes(h.Dock(slotProps())).filter((node) => node.props?.role === 'alert')
+  assert.equal(alerts.length, 1)
+  assert.equal(text(alerts[0]), h.dict.panelError.replace('{reason}', 'boom'))
+})
+
+test('composer control reflects draft and busy state', async () => {
+  const h = await createHarness()
+  const empty = h.Button({ ...slotProps(), useInput: (selector) => selector({ draft: '   ' }) })
+  assert.equal(buttons(empty)[0].props.disabled, true)
+  assert.equal(buttons(h.Button(slotProps()))[0].props.disabled, false)
+  h.setState({ ...IDLE, status: 'loading', sessionId: 'sess-a' })
+  assert.equal(buttons(h.Button(slotProps()))[0].props.disabled, true)
+})

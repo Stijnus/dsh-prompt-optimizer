@@ -12,7 +12,7 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-prompt-optimizer',
+  id: '@stijnus/dsh-prompt-optimizer',
   factory(require) {
     const React = require('react')
     const h = React.createElement

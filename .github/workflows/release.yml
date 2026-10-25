@@ -1,0 +1,81 @@
+name: release
+
+# Publishes a tagged commit to npm with a provenance attestation.
+#
+# Auth is npm trusted publishing (OIDC): this workflow needs no NPM_TOKEN, but
+# the package must list this repository and workflow as a trusted publisher.
+# See RELEASING.md for the one-time setup.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC: npm trusted publishing + provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          # No registry-url on purpose: it writes an .npmrc with a
+          # ${NODE_AUTH_TOKEN} placeholder, and trusted publishing must run
+          # without a token. The default registry is registry.npmjs.org.
+
+      - name: Tag matches package.json
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match package.json version ${version}"
+            exit 1
+          fi
+          echo "releasing ${version}"
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Check for an already published version
+        id: registry
+        run: |
+          node --input-type=module <<'JS'
+          import { appendFileSync, readFileSync } from 'node:fs';
+          const { name, version } = JSON.parse(readFileSync('package.json', 'utf8'));
+          const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}/${version}`);
+          if (!response.ok && response.status !== 404) throw new Error(`Registry check failed: ${response.status}`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `published=${response.ok}\n`);
+          JS
+
+      - name: Publish
+        if: steps.registry.outputs.published != 'true'
+        run: npm publish --provenance --access public
+
+      - name: Verify published version
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          for attempt in {1..40}; do
+            published="$(npm view "${name}@${version}" version 2>/dev/null || true)"
+            if [ "$published" = "$version" ]; then
+              echo "Verified npm version ${version}"
+              exit 0
+            fi
+            echo "Waiting for npm to expose ${version} (${attempt}/40)"
+            sleep 15
+          done
+          echo "::error::Published version did not become visible within 10 minutes"
+          exit 1
