@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 — 2026-10-25
+
+- Incomplete streams are reported as errors and cannot replace the draft.
+- Cancelled requests cannot overwrite a newer optimization request.
+- Regression tests cover interrupted streams and Use/Undo draft preservation.
+
 ## 0.2.0 — 2026-10-25
 
 ### Added

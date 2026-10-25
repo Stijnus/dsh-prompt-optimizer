@@ -168,3 +168,5 @@ runs the tests, and publishes to npm with a provenance attestation. See
 
 MIT. The imported rewrite engine is MIT-licensed by its author
 ([seven282/oss-prompt-optimizer](https://github.com/seven282/oss-prompt-optimizer)).
+
+Interrupted or failed rewrites cannot be applied. The original draft remains editable; only a completed result enables Use. Undo restores the draft captured when Use was clicked.

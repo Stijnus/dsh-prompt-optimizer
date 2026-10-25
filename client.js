@@ -200,6 +200,7 @@ window.__ModuleLoader__.load({
           }),
           signal: local.signal,
         })
+        if (local.signal.aborted || inflight !== local) return
         if (!response.ok || response.body === null) {
           setState({ status: 'error', error: `HTTP ${response.status}` })
           return
@@ -207,6 +208,7 @@ window.__ModuleLoader__.load({
         let text = ''
         let settled = false
         await consumeStream(response, local.signal, (event) => {
+          if (local.signal.aborted || inflight !== local || settled) return
           if (event === null || typeof event !== 'object') return
           if (event.type === 'meta') {
             setState({
@@ -228,11 +230,11 @@ window.__ModuleLoader__.load({
         })
         if (!settled && !local.signal.aborted && getSnapshot().status === 'loading') {
           if (text.trim() === '') setState({ status: 'error', error: 'empty-output' })
-          else setState({ status: 'done', result: text, live: text })
+          else setState({ status: 'error', error: 'unfinished' })
         }
       } catch (error) {
-        if (local.signal.aborted) setState({ status: 'idle', live: '' })
-        else setState({ status: 'error', error: shortMessage(error) })
+        if (local.signal.aborted || inflight !== local) return
+        setState({ status: 'error', error: shortMessage(error) })
       } finally {
         if (inflight === local) inflight = null
       }
@@ -522,7 +524,7 @@ window.__ModuleLoader__.load({
         }
 
         const onUse = () => {
-          if (text.trim() === '' || state.backup !== null) return
+          if (state.status !== 'done' || text.trim() === '' || state.backup !== null) return
           if (!writeDraft(text.trim())) return
           setState({ backup: draft })
         }
@@ -544,7 +546,7 @@ window.__ModuleLoader__.load({
         }
 
         const applied = state.backup !== null
-        const canApply = text.trim() !== '' && state.status !== 'loading' && !applied
+        const canApply = text.trim() !== '' && state.status === 'done' && !applied
 
         return h(
           'div',

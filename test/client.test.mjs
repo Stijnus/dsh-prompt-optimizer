@@ -18,7 +18,7 @@ import vm from 'node:vm'
 const CLIENT_PATH = fileURLToPath(new URL('../client.js', import.meta.url))
 const STYLE_KEY = 'dsh-prompt-optimizer.outputStyle'
 
-async function loadDefinition(seed = []) {
+async function loadDefinition(seed = [], fetchOverride) {
   const source = await readFile(CLIENT_PATH, 'utf8')
   const storage = new Map(seed)
   let definition
@@ -37,9 +37,9 @@ async function loadDefinition(seed = []) {
     },
     document: { addEventListener() {}, removeEventListener() {} },
     navigator: { clipboard: { writeText: async () => {} } },
-    fetch: async () => {
+    fetch: fetchOverride ?? (async () => {
       throw new Error('fetch must not run in a render test')
-    },
+    }),
     AbortController,
     TextDecoder,
     JSON,
@@ -66,8 +66,8 @@ const IDLE = {
   backup: null,
 }
 
-async function createHarness(seed = []) {
-  const { definition, storage } = await loadDefinition(seed)
+async function createHarness(seed = [], fetchOverride) {
+  const { definition, storage } = await loadDefinition(seed, fetchOverride)
   const holder = { state: IDLE }
   const dicts = {}
   const registrations = []
@@ -76,7 +76,7 @@ async function createHarness(seed = []) {
     createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat() }),
     useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
     useEffect: () => {},
-    useSyncExternalStore: () => holder.state,
+    useSyncExternalStore: (_subscribe, getSnapshot) => fetchOverride ? getSnapshot() : holder.state,
   }
 
   const mod = definition.factory((id) => {
@@ -290,4 +290,43 @@ test('style setting starts from a stored override', async () => {
 test('an invalid stored value is ignored', async () => {
   const h = await createHarness([[STYLE_KEY, 'nonsense']])
   assert.equal(selects(h.Settings())[0].props.value, 'plain')
+})
+
+const flush = () => new Promise((resolve) => setImmediate(resolve))
+const streamResponse = (...events) => new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''))
+
+test('an interrupted stream cannot replace the draft', async () => {
+  const h = await createHarness([], async () => streamResponse({ type: 'delta', text: 'partial' }))
+  const props = slotProps()
+  let writes = 0
+  props.inputActions.setDraft = () => { writes++ }
+  h.Button(props).props.onClick()
+  await flush()
+  const tree = h.Dock(props)
+  assert.match(text(tree), /unfinished/)
+  const use = buttons(tree).find((b) => text(b) === h.dict.panelUse)
+  assert.equal(use.props.disabled, true)
+  use.props.onClick()
+  assert.equal(writes, 0)
+})
+
+test('a cancelled request cannot reset its replacement, and Use/Undo preserves the draft', async () => {
+  const pending = []
+  const h = await createHarness([], () => new Promise((resolve, reject) => pending.push({ resolve, reject })))
+  const props = slotProps()
+  let draft = 'original draft'
+  props.useInput = (select) => select({ draft })
+  props.inputActions.setDraft = (value) => { draft = value }
+  h.Button(props).props.onClick()
+  h.Button({ ...props, sessionId: 'sess-b' }).props.onClick()
+  pending[0].reject(new Error('aborted'))
+  await flush()
+  const current = { ...props, sessionId: 'sess-b' }
+  assert.match(text(h.Dock(current)), new RegExp(h.dict.panelAnalyzing))
+  pending[1].resolve(streamResponse({ type: 'done', text: 'rewritten' }))
+  await flush()
+  buttons(h.Dock(current)).find((b) => text(b) === h.dict.panelUse).props.onClick()
+  assert.equal(draft, 'rewritten')
+  buttons(h.Dock(current)).find((b) => text(b) === h.dict.panelUndo).props.onClick()
+  assert.equal(draft, 'original draft')
 })
