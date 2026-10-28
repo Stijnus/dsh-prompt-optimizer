@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.5 — 2026-10-28
+
+### Changed
+
+- Replaced the timed, one-time "star the suite" overlay prompt with a quiet,
+  user-initiated star link in the plugin's own UI. It never interrupts or
+  auto-opens; it links to the Stijnus DSH plugin suite on GitHub.
+
 ## 0.2.4 — 2026-10-28
 
 ### Added

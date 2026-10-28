@@ -26,6 +26,9 @@ window.__ModuleLoader__.load({
     /** Rewrite shapes accepted by the Host; mirrors its Config enum. */
     const STYLES = ['plain', 'sections', 'role-task-goal']
     /** Browser-scoped override of the profile's `outputStyle` default. */
+    /** Quiet, user-initiated suite star link. */
+    const STAR_SUITE_URL = 'https://github.com/Stijnus?tab=repositories&q=dsh'
+
     const STYLE_KEY = 'dsh-prompt-optimizer.outputStyle'
     const STYLE_SHORT_KEYS = {
       plain: 'stylePlainShort',
@@ -49,6 +52,8 @@ window.__ModuleLoader__.load({
         panelEmpty: 'No result yet.',
         panelApplied: 'Draft replaced. Undo restores the original text.',
         panelError: 'Optimization failed: {reason}',
+        starSuite: 'Star the suite',
+        starSuiteTitle: 'Star the Stijnus DSH plugin suite on GitHub',
         styleRowTitle: 'Prompt style',
         styleRowDescription:
           'Shape the rewritten prompt is written in. Plain keeps one continuous prompt; Sections uses Role / Task / Context / Format headings; Role-Task-Goal uses three labeled lines.',
@@ -74,6 +79,8 @@ window.__ModuleLoader__.load({
         panelEmpty: '还没有结果。',
         panelApplied: '已替换草稿，点击撤销可恢复原文。',
         panelError: '优化失败：{reason}',
+        starSuite: '为插件套件点星',
+        starSuiteTitle: '在 GitHub 上为 Stijnus 的 DSH 插件套件点星',
         styleRowTitle: '提示词形态',
         styleRowDescription:
           '控制改写后提示词的排版。纯文本：一整段连续提示词；分段：使用「角色 / 任务 / 背景 / 格式」小节标题；角色·任务·目标：三行标签式。',
@@ -602,6 +609,17 @@ window.__ModuleLoader__.load({
                 copied ? t('panelCopied') : t('panelCopy'),
               ),
               h(
+                'a',
+                {
+                  href: STAR_SUITE_URL,
+                  target: '_blank',
+                  rel: 'noopener noreferrer',
+                  title: t('starSuiteTitle'),
+                  style: { fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-link)', textDecoration: 'none', whiteSpace: 'nowrap' },
+                },
+                '\u2605 ' + t('starSuite'),
+              ),
+              h(
                 'button',
                 {
                   type: 'button',
@@ -616,132 +634,6 @@ window.__ModuleLoader__.load({
       }
     }
 
-
-    // One-time "star the suite" prompt shared by every Stijnus plugin.
-    // Whichever plugin mounts first shows it; all of them consult the same
-    // localStorage marker so five installed plugins cannot stack five cards.
-    const STAR_CTA_KEY = 'dsh-stijnus-star-cta/v1'
-    const STAR_LINKS = [
-      ['Composer Predictions', 'https://github.com/Stijnus/dsh-composer-predictions'],
-      ['Moodboard', 'https://github.com/Stijnus/dsh-moodboard'],
-      ['Prompt Optimizer', 'https://github.com/Stijnus/dsh-prompt-optimizer'],
-      ['Move to Workspace', 'https://github.com/Stijnus/dsh-move-to-workspace'],
-      ['Workspace Status', 'https://github.com/Stijnus/dsh-workspace-status'],
-    ]
-
-    function starCtaShown() {
-      try {
-        return window.localStorage.getItem(STAR_CTA_KEY) !== null
-      } catch {
-        return true
-      }
-    }
-
-    function markStarCtaShown() {
-      try {
-        window.localStorage.setItem(STAR_CTA_KEY, String(Date.now()))
-      } catch {
-        // A blocked localStorage only means the prompt may reappear next launch.
-      }
-    }
-
-    function StarSuiteCta() {
-      const [open, setOpen] = React.useState(false)
-      React.useEffect(() => {
-        if (starCtaShown()) return undefined
-        const timer = window.setTimeout(() => {
-          if (starCtaShown()) return
-          markStarCtaShown()
-          setOpen(true)
-        }, 25000)
-        return () => window.clearTimeout(timer)
-      }, [])
-      if (!open) return null
-      const close = () => setOpen(false)
-      return h(
-        'div',
-        {
-          role: 'status',
-          'aria-live': 'polite',
-          style: {
-            position: 'fixed',
-            left: '16px',
-            bottom: '72px',
-            zIndex: 2147483000,
-            width: '300px',
-            maxWidth: 'calc(100vw - 32px)',
-            boxSizing: 'border-box',
-            padding: '14px 14px 12px',
-            borderRadius: '12px',
-            border: '1px solid var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.14))',
-            background: 'var(--dsw-alias-bg-layer-2, #1c1c1e)',
-            color: 'var(--dsw-alias-label-primary, #f2f2f2)',
-            boxShadow: '0 8px 28px rgba(0, 0, 0, 0.28)',
-            fontSize: '13px',
-            lineHeight: '18px',
-          },
-        },
-        h(
-          'button',
-          {
-            type: 'button',
-            onClick: close,
-            'aria-label': 'Dismiss',
-            style: {
-              position: 'absolute',
-              top: '8px',
-              right: '8px',
-              width: '24px',
-              height: '24px',
-              padding: '0',
-              border: '0',
-              borderRadius: '6px',
-              background: 'transparent',
-              cursor: 'pointer',
-              color: 'var(--dsw-alias-label-tertiary, #9a9a9a)',
-              fontSize: '16px',
-              lineHeight: '24px',
-            },
-          },
-          '\u00d7',
-        ),
-        h('div', { style: { fontWeight: 600, paddingRight: '24px' } }, 'Enjoying these plugins?'),
-        h(
-          'div',
-          {
-            style: {
-              marginTop: '4px',
-              color: 'var(--dsw-alias-label-secondary, #b8b8b8)',
-              fontSize: '12px',
-              lineHeight: '17px',
-            },
-          },
-          'A star on GitHub helps them reach the DeepSeek Harness plugin market.',
-        ),
-        h(
-          'div',
-          { style: { display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '10px' } },
-          STAR_LINKS.map(([name, url]) =>
-            h(
-              'a',
-              {
-                key: url,
-                href: url,
-                target: '_blank',
-                rel: 'noopener noreferrer',
-                onClick: close,
-                style: {
-                  color: 'var(--dsw-alias-link, #6cb8ff)',
-                  fontSize: '12px',
-                  textDecoration: 'none',
-                },
-              },
-              '\u2b50 ' + name,
-            ),
-          ),
-        ),
-      )
-    }
 
     return {
       inject: ['slots', 'locale'],
@@ -779,10 +671,6 @@ window.__ModuleLoader__.load({
             createStyleSetting(t),
           ),
         )
-        ctx.slots.inject('shell.overlay', () => ctx.slots.register(
-          { name: 'shell.overlay', id: 'prompt-rewrite-star-cta' },
-          () => h(StarSuiteCta),
-        ))
       },
     }
   },

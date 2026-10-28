@@ -163,15 +163,12 @@ test('module identity, injection and registrations', async () => {
     'conversation.input.dock',
     'conversation.input.right',
     'settings.general.item',
-    'shell.overlay',
   ])
-  for (const reg of h.registrations.filter((r) => r.name !== 'shell.overlay')) {
+  for (const reg of h.registrations) {
     assert.equal(reg.id, 'prompt-optimizer')
     assert.ok(Number.isInteger(reg.order))
   }
-  const starRegistration = h.registrations.find((r) => r.name === 'shell.overlay')
-  assert.ok(starRegistration, 'the one-time star prompt registers on the shell overlay')
-  assert.equal(starRegistration.id, 'prompt-rewrite-star-cta')
+  assert.ok(!h.registrations.some((r) => r.name === 'shell.overlay'), 'no timed star popup registers on the shell overlay')
   assert.ok(h.dict, 'locale dictionary registered')
 })
 
