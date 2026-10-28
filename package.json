@@ -1,6 +1,6 @@
 {
   "name": "dsh-prompt-rewrite",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Optimize the DeepSeek Harness composer draft into a structured prompt through the session model, reusing the Prompt Optimizer rewrite engine. Choose plain, sections, or role-task-goal output.",
   "type": "module",
   "license": "MIT",
@@ -61,7 +61,7 @@
     "catalog": {
       "summary": {
         "en": "Rewrite the composer draft into a structured prompt in one click, streamed from the session's own model with preview and undo.",
-        "zh": "一键把输入框草稿改写为结构化提示词，用当前会话模型流式生成，支持预览与撤销。"
+        "zh": "\u4e00\u952e\u628a\u8f93\u5165\u6846\u8349\u7a3f\u6539\u5199\u4e3a\u7ed3\u6784\u5316\u63d0\u793a\u8bcd\uff0c\u7528\u5f53\u524d\u4f1a\u8bdd\u6a21\u578b\u6d41\u5f0f\u751f\u6210\uff0c\u652f\u6301\u9884\u89c8\u4e0e\u64a4\u9500\u3002"
       },
       "category": "ui"
     }
