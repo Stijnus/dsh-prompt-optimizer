@@ -44,11 +44,17 @@ Until the row is changed, it shows that profile default; an override in the row
 wins for requests from that browser. The result panel names the style that
 produced it.
 
-> **Naming:** this package is scoped because the unscoped name
-> `dsh-prompt-optimizer` already belongs to a different author on npm. This
-> plugin is unrelated to that package; both optimize composer prompts, but this
-> one reuses [`oss-prompt-optimizer`](https://www.npmjs.com/package/oss-prompt-optimizer)
-> as its rewrite engine.
+> **Package name:** install `dsh-prompt-rewrite`. The GitHub repository is named
+> `dsh-prompt-optimizer`, but that is not this plugin’s npm package name. The
+> rewrite engine is [`oss-prompt-optimizer`](https://www.npmjs.com/package/oss-prompt-optimizer).
+
+[Install](#quick-start) · [Local walkthrough](#try-a-rewrite) · [Prompt styles](#prompt-style) · [Implementation](#where-the-rewrite-logic-lives)
+
+## Try a rewrite
+
+After installation, enter a draft such as “Build a task list for my team” and click **Optimize prompt**. Review the completed result, choose **Use** to replace the draft, or **Copy** to keep it separately. **Undo** restores the draft captured when you clicked Use.
+
+This is a suggested local walkthrough, not a recorded demo. Output depends on your session’s model and selected prompt style. Rewriting calls the model and may incur provider charges; it does not send the rewritten draft as a conversation turn.
 
 ## Quick start
 
